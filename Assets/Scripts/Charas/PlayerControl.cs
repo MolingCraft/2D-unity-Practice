@@ -5,39 +5,221 @@ using UnityEngine.UI;
 
 public class PlayerControl : MonoBehaviour
 {
-    Rigidbody2D PlayerRigid;
-    Animator PlayerAnim;
+    public Rigidbody2D PlayerRigid;
+    ////public Animator PlayerAnim;
     [Header("基础设置")]
     //public Transform Player;
     //public string PlayerName;
-    public float PlayerRunSpeed;
-
+    public GameObject PlayerSprite;//玩家角色物体
+    public float PlayerAlpha;//玩家不透明度，同时也是玩家的血量
+    public float PlayerRunSpeed;//移动速度
+    private float PlayerCurrentSpeed;//当前速度
+    //public bool AlphaRecoverIf;//不透明度是否恢复
+    public float AlphaRecoverNumber;//不透明度恢复数值
+    public float AlphaMaxNumber;//不透明度可恢复至的最大数值
     private float moveHor;//水平移动键Horizontal是否被按下
     private float moveVer;//垂直移动键Vertical是否被按下
 
+    [Header("冲刺设置")]
+    public bool AllowRushIf;//是否允许冲刺
+    private bool InRushIf;//是否在冲刺中
+    public float PlayerRushSpeed;//冲刺速度
+    public float RushAlphaConsumption;//冲刺消耗的不透明度
+    public float RushMinAlpha;//允许冲刺的最小不透明度值
+    [Header("脚印设置")]
+    public bool FeetShowIf;//是否显示脚印
+    public ParticleSystem StepSystem;//脚印粒子的对象
+    public Material FeetStepMaterial;//脚印粒子的材质
+    Vector3 LastEmit;//上一个位置坐标
+    public float delta = 1;
+    public float gap = 0.5f;
+    public float systemYOffset = -0.225f;
+    Vector2 lookDirection = new Vector2(1, 0);
+
+    [Header("技能生效对象")]
+    public GameObject MapBlock;//地图
+    public GameObject Enemy;
+
+    [Header("声音可视化设置")]
+    public bool VoiceShowIf;//是否显示脚印
+    public ParticleSystem VoiceSystem;//脚印粒子的对象
+    public Material VoiceMaterial;//脚印粒子的材质
+
+    [Header("“视”技能参数设置")]
+    //技能《视》
+    public bool AllowEyeSkill;//是否允许使用技能
+    public int UseEyeSkillNumber;//技能使用次数
+    public float MaxNumberEyeSkill;//最大技能次数
+    private float NumberEyeSkill;//剩余技能次数
+    public float CDeyeSkill;//CD时间
+    private bool InCDeyeIf;//是否在cd中
+    public float TimeEyeSkill;//持续时间
+    public float EyeAlphaConsumption;//《视》消耗的不透明度
+    private float AlphaAddSkill;//技能增加的alpha值
+
+    [Header("“听”技能参数设置")]
+    //技能《听》
+    
+    public bool AllowListenSkill;
+    public int UseListenSkillNumber;
+    public float MaxNumberListenSkill;
+    private float NumberListenSkill;
+    public float CDlistenSkill;
+    private bool InCDlistenIf;
+    public float TimelistenSkill;
+    private float ListenAlphaConsumption;//技能增加的alpha值
+
+
+    int dir = 1;
     // Start is called before the first frame update
     void Start()
     {
-        PlayerRigid = GetComponent<Rigidbody2D>();//人物刚体
-        PlayerAnim = GetComponent<Animator>();//人物动画
+        PlayerRigid.GetComponent<Rigidbody2D>();//人物刚体
+        ////PlayerAnim.GetComponent<Animator>();//人物动画
+        ///
+        LastEmit = transform.position;
+        StepSystem.GetComponent<Renderer>().material = FeetStepMaterial;
+
+        AllowRushIf = true;
+        InRushIf = false;
+        VoiceSystem.Stop();//初始阶段直接关停声音可视化
+
+        NumberEyeSkill = MaxNumberEyeSkill;
+        NumberListenSkill = MaxNumberListenSkill;
+        UseEyeSkillNumber = 0;
+        UseListenSkillNumber = 0;
+        AlphaAddSkill = 1 / MaxNumberEyeSkill;
+        MapBlock.GetComponent<Renderer>().material.color = new Color(1.0f, 1.0f, 1.0f, 0f);
+
     }
 
+    private void Reset()
+    {
+        PlayerAlpha = 1;
+        PlayerRunSpeed = 5.0f;
+        PlayerRushSpeed = 10.0f;
+    }
+
+
+    private void FixedUpdate()
+    {
+        PlayerSprite.GetComponent<Renderer>().material.color=new Color(1.0f, 1.0f, 1.0f, PlayerAlpha);
+
+        if (PlayerAlpha < RushMinAlpha) AllowRushIf = false;
+        else AllowRushIf = true;
+
+        Move();
+
+        
+        if ((PlayerAlpha<AlphaMaxNumber)&&!Input.GetKey(KeyCode.LeftShift)) PlayerAlpha += AlphaRecoverNumber;
+
+        if (FeetShowIf)SetFeetStep();
+        
+        if (AllowEyeSkill && Input.GetButtonDown("EyeSkill"))StartCoroutine(EyeSkill());
+        if (AllowListenSkill && Input.GetButtonDown("ListenSkill"))StartCoroutine(ListenSkill());
+
+    }
     // Update is called once per frame
     void Update()
     {
-        Move();
     }
     
     void Move()
     {
         moveVer = Input.GetAxis("Vertical");
         moveHor = Input.GetAxis("Horizontal");
+        if (!Mathf.Approximately(moveHor, 0.0f) || !Mathf.Approximately(moveVer, 0.0f))//使脚印可以旋转朝向移动方向
+        {
+            lookDirection.Set(moveHor,moveVer);
+            lookDirection.Normalize();
+        }
+        ////PlayerAnim.SetFloat("Look X", lookDirection.x);
+        ////PlayerAnim.SetFloat("Look Y", lookDirection.y);
+        ////PlayerAnim.SetFloat("Speed", move.magnitude);
+
+        
+        if (AllowRushIf &&Input.GetKey(KeyCode.LeftShift))//冲刺
+        {
+            InRushIf = true;
+            PlayerAlpha -= RushAlphaConsumption;
+            PlayerRigid.velocity = new Vector2(moveHor * PlayerRushSpeed, moveVer * PlayerRushSpeed);
+            // PlayerRushSpeed * Time.deltaTime; * Time.deltaTime;
+            // 这个似乎可以防止因不同电脑的性能导致的帧数差别，从而令奔跑速度不一致的问题
+            PlayerCurrentSpeed = PlayerRushSpeed;
+            ////PlayerAnim.SetBool("IsRush", true);
+        }
+        else
+        {
+            InRushIf = false;
+            PlayerRigid.velocity = new Vector2(moveHor * PlayerRunSpeed, moveVer * PlayerRunSpeed);
+            PlayerCurrentSpeed = PlayerRunSpeed;
+            ////PlayerAnim.SetBool("IsRush", false);
+        }
+        //PlayerRigid.velocity=position;
+        
         //Input.GetAxisRaw("Vertical")会导致移动时不是平移，缺少缓动
-        PlayerRigid.velocity = new Vector2(moveHor * PlayerRunSpeed, moveVer * PlayerRunSpeed);
-        //PlayerRigid.velocity = new Vector2(moveHor * PlayerRunSpeed, PlayerRigid.velocity.y);
 
     }
     
     
+    void SetFeetStep()//脚步
+    {
+        if (Vector2.Distance(LastEmit, transform.position) > delta)
+        {
+            Gizmos.color = Color.green;
+            var pos = transform.position + new Vector3(lookDirection.y * gap * dir, -lookDirection.x * gap * dir, -5) + new Vector3(0, systemYOffset, 0);
+            //利用两向量垂直公式：x1x2+y1y2=0，将lookDirection转90度。
+            dir *= -1;
+            ParticleSystem.EmitParams ep = new ParticleSystem.EmitParams();
+            ep.position = pos;
+            if (lookDirection.x > 0)
+            {
+                ep.rotation = Vector2.Angle(new Vector2(0, 1), lookDirection);
+            }
+            else if (lookDirection.x <= 0)
+            {
+                ep.rotation = -Vector2.Angle(new Vector2(0, 1), lookDirection);
+            }
+            StepSystem.Emit(ep, 1);
+            LastEmit = transform.position;
+           
+        }
+    }
+    private IEnumerator EyeSkill()//使用技能，且制止玩家在技能期间重复使用技能
+    {
+        PlayerAlpha -= EyeAlphaConsumption;
+        NumberEyeSkill--;
+        UseEyeSkillNumber++;
+        AllowEyeSkill = false;
+        InCDeyeIf = true;
 
+        MapBlock.GetComponent<Renderer>().material.color = new Color(1.0f, 1.0f, 1.0f, AlphaAddSkill * UseEyeSkillNumber);
+        yield return new WaitForSeconds(TimeEyeSkill);//技能持续时长
+
+
+        yield return new WaitForSeconds(CDeyeSkill);//cd冷却
+        InCDeyeIf = false;//CD结束
+        NumberEyeSkill++;
+        AllowEyeSkill = true;
+    }
+
+
+    private IEnumerator ListenSkill()
+    {
+        PlayerAlpha -= ListenAlphaConsumption;
+        NumberListenSkill--;
+        UseListenSkillNumber++;
+        AllowListenSkill = false;
+        InCDlistenIf = true;
+
+
+        yield return new WaitForSeconds(TimelistenSkill);//技能持续时长
+
+        //chararigid.gravityScale = RushGravity;//重力回归初值
+
+        yield return new WaitForSeconds(CDlistenSkill);//cd冷却
+        InCDlistenIf = false;//CD结束
+        NumberListenSkill++;
+        AllowListenSkill = true;
+    }
 }
