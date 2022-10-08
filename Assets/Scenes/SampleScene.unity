@@ -247,7 +247,7 @@ MonoBehaviour:
   AlphaMaxNumber: 1
   AllowRushIf: 1
   PlayerRushSpeed: 10
-  RushAlphaConsumption: 0.005
+  RushAlphaExpend: 0.005
   RushMinAlpha: 0.5
   FeetShowIf: 1
   StepSystem: {fileID: 1993352293}
@@ -260,13 +260,12 @@ MonoBehaviour:
   VoiceShowIf: 1
   VoiceSystem: {fileID: 989077078}
   VoiceMaterial: {fileID: 2100000, guid: 4b47329ddb32a4245a5e98b03a9ad653, type: 2}
-  AllowEyeSkill: 1
-  UseEyeSkillNumber: 1
-  MaxNumberEyeSkill: 3
-  CDeyeSkill: 1
-  TimeEyeSkill: 1
-  EyeAlphaConsumption: 0.3
-  AllowListenSkill: 1
+  AllowEyeSkillIf: 1
+  EyeAlphaExpend: 0.005
+  EyeMinAlpha: 0.5
+  AlphaAddSkill: 0.005
+  InfluenceAlpha: 0
+  AllowListenSkillIf: 0
   UseListenSkillNumber: 0
   MaxNumberListenSkill: 3
   CDlistenSkill: 1
