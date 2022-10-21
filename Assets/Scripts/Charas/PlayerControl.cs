@@ -35,49 +35,35 @@ public class PlayerControl : MonoBehaviour
     public float gap = 0.5f;
     public float systemYOffset = -0.225f;
     Vector2 lookDirection = new Vector2(1, 0);
-
+    int dir = 1;
     [Header("技能生效对象")]
     public GameObject MapBlock;//地图
     public GameObject Enemy;
 
     [Header("声音可视化设置")]
-    public bool VoiceShowIf;//是否显示脚印
-    public ParticleSystem VoiceSystem;//脚印粒子的对象
-    public Material VoiceMaterial;//脚印粒子的材质
+    public bool VoiceShowIf;//是否允许音圈显示
+    private bool VoiceShowOne;//切换音圈显示时防止命令重复运行
+    public ParticleSystem VoiceSystem;//音圈的对象
+    public Material VoiceMaterial;//音圈的材质
 
+    
     [Header("“视”技能参数设置")]
     //技能《视》
     public bool AllowEyeSkillIf;//是否允许使用技能
-    private bool InEyeSkillIf;//是否在技能生效时间内
-    public float EyeAlphaExpend;//《视》消耗的人物不透明度
-    public float EyeMinAlpha;//允许使用“视”的最小不透明度值
-
-    public float AlphaAddSkill;//技能增加的目标不透明度值
-    public float InfluenceAlpha;//目标的不透明度值
-    /*
+    public float AlphaStartEyeNumber;//起始生效alpha值
     public int UseEyeSkillNumber;//技能已使用次数
     public float MaxNumberEyeSkill;//最大技能次数
-    private float NumberEyeSkill;//剩余技能次数
-    public float CDeyeSkill;//CD时间
-    private bool InCDeyeIf;//是否在cd中
     public float TimeEyeSkill;//持续时间
-    */
-
+    private float AlphaAddSkill;//技能增加的目标不透明度值
 
     [Header("“听”技能参数设置")]
     //技能《听》
-    
-    public bool AllowListenSkillIf;
-    public int UseListenSkillNumber;
-    public float MaxNumberListenSkill;
-    private float NumberListenSkill;
-    public float CDlistenSkill;
-    private bool InCDlistenIf;
-    public float TimelistenSkill;
-    private float ListenAlphaConsumption;//技能增加的alpha值
 
+    public bool AllowListenSkillIf;//是否允许使用技能
+    public int UseListenSkillNumber;//技能已使用次数
+    public float MaxNumberListenSkill;//最大技能次数
+    public float TimeListenSkill;//持续时间
 
-    int dir = 1;
     // Start is called before the first frame update
     void Start()
     {
@@ -89,17 +75,14 @@ public class PlayerControl : MonoBehaviour
 
         AllowRushIf = true;
         InRushIf = false;
-        VoiceSystem.Stop();//初始阶段直接关停声音可视化
-
-        InEyeSkillIf = false;
-
-        /*
+        
+        
         UseEyeSkillNumber = 0;
-        NumberEyeSkill = MaxNumberEyeSkill;
-        NumberListenSkill = MaxNumberListenSkill;
+        AlphaAddSkill = 1 / MaxNumberEyeSkill;//确保在达到最大技能次数时，技能对象的alpha值达到100%
+
         UseListenSkillNumber = 0;
-        AlphaAddSkill = 1 / MaxNumberEyeSkill;
-        */
+        
+        
         MapBlock.GetComponent<Renderer>().material.color = new Color(1.0f, 1.0f, 1.0f, 0f);
 
     }
@@ -114,31 +97,38 @@ public class PlayerControl : MonoBehaviour
 
     private void FixedUpdate()
     {
+        //玩家不透明度改变
         PlayerSprite.GetComponent<Renderer>().material.color=new Color(1.0f, 1.0f, 1.0f, PlayerAlpha);
-
+        //玩家alpha低于一定值时禁止冲刺
         if (PlayerAlpha < RushMinAlpha) AllowRushIf = false;else AllowRushIf = true;
 
         Move();
 
-        
-        if ((PlayerAlpha<AlphaMaxNumber)&&!Input.GetKey(KeyCode.LeftShift)&&!InEyeSkillIf) PlayerAlpha += AlphaRecoverNumber;
-
+        //alpha恢复
+        if ((PlayerAlpha<AlphaMaxNumber)&&!Input.GetKey(KeyCode.LeftShift)) PlayerAlpha += AlphaRecoverNumber;
+        //脚步显示
         if (FeetShowIf)SetFeetStep();
-
-        //if (AllowEyeSkillIf && Input.GetButtonDown("EyeSkill"))StartCoroutine(EyeSkill());
-
-        if (AllowEyeSkillIf)
+        if (VoiceShowOne&&VoiceShowIf)
         {
-            if (Input.GetButtonDown("EyeSkill")) InEyeSkillIf = !InEyeSkillIf;
-            EyeSkill();
+            VoiceSystem.Play();
+            VoiceShowOne = false;
+        }
+        else if (!VoiceShowOne && !VoiceShowIf)
+        {
+            VoiceSystem.Stop();
+            VoiceShowOne = true;
         }
 
-        if (AllowListenSkillIf && Input.GetButtonDown("ListenSkill"))StartCoroutine(ListenSkill());
+        //《视》技能
+        if (AllowEyeSkillIf && Input.GetButtonDown("EyeSkill")) StartCoroutine(EyeSkill());
+        //《听》技能
+        if (AllowListenSkillIf && Input.GetButtonDown("ListenSkill")) StartCoroutine(ListenSkill());
 
     }
     // Update is called once per frame
     void Update()
     {
+       
     }
     
     void Move()
@@ -159,7 +149,7 @@ public class PlayerControl : MonoBehaviour
         {
             InRushIf = true;
             PlayerAlpha -= RushAlphaExpend;
-            PlayerRigid.velocity = new Vector2(moveHor * PlayerRushSpeed, moveVer * PlayerRushSpeed);
+            PlayerRigid.velocity = new Vector2(moveHor * PlayerRushSpeed * Time.deltaTime, moveVer * PlayerRushSpeed * Time.deltaTime);
             // PlayerRushSpeed * Time.deltaTime; * Time.deltaTime;
             // 这个似乎可以防止因不同电脑的性能导致的帧数差别，从而令奔跑速度不一致的问题
             PlayerCurrentSpeed = PlayerRushSpeed;
@@ -168,7 +158,7 @@ public class PlayerControl : MonoBehaviour
         else
         {
             InRushIf = false;
-            PlayerRigid.velocity = new Vector2(moveHor * PlayerRunSpeed, moveVer * PlayerRunSpeed);
+            PlayerRigid.velocity = new Vector2(moveHor * PlayerRunSpeed * Time.deltaTime, moveVer * PlayerRunSpeed * Time.deltaTime);
             PlayerCurrentSpeed = PlayerRunSpeed;
             ////PlayerAnim.SetBool("IsRush", false);
         }
@@ -201,7 +191,7 @@ public class PlayerControl : MonoBehaviour
            
         }
     }
-
+    /*
     void EyeSkill()
     {
         if (PlayerAlpha <= EyeMinAlpha) InEyeSkillIf = false;
@@ -220,42 +210,33 @@ public class PlayerControl : MonoBehaviour
         }
             
     }
-    /*
+    */
     private IEnumerator EyeSkill()//使用技能，且制止玩家在技能期间重复使用技能
     {
-        PlayerAlpha -= EyeAlphaExpend;
-        NumberEyeSkill--;
         UseEyeSkillNumber++;
-        AllowEyeSkill = false;
-        InCDeyeIf = true;
-
-        MapBlock.GetComponent<Renderer>().material.color = new Color(1.0f, 1.0f, 1.0f, AlphaAddSkill * UseEyeSkillNumber);
+        AllowEyeSkillIf = false;
+        
+        MapBlock.GetComponent<Renderer>().material.color = new Color(1.0f, 1.0f, 1.0f, AlphaStartEyeNumber + AlphaAddSkill * UseEyeSkillNumber);
         yield return new WaitForSeconds(TimeEyeSkill);//技能持续时长
-
-
-        yield return new WaitForSeconds(CDeyeSkill);//cd冷却
-        InCDeyeIf = false;//CD结束
-        NumberEyeSkill++;
-        AllowEyeSkill = true;
+        MapBlock.GetComponent<Renderer>().material.color = new Color(1.0f, 1.0f, 1.0f, AlphaStartEyeNumber + AlphaAddSkill * (UseEyeSkillNumber-1));
+        AllowEyeSkillIf = true;
     }
-    */
+    
 
     private IEnumerator ListenSkill()
     {
-        PlayerAlpha -= ListenAlphaConsumption;
-        NumberListenSkill--;
         UseListenSkillNumber++;
         AllowListenSkillIf = false;
-        InCDlistenIf = true;
 
+        VoiceShowIf = !VoiceShowIf;
+        FeetShowIf = !FeetShowIf;
 
-        yield return new WaitForSeconds(TimelistenSkill);//技能持续时长
-
-        //chararigid.gravityScale = RushGravity;//重力回归初值
-
-        yield return new WaitForSeconds(CDlistenSkill);//cd冷却
-        InCDlistenIf = false;//CD结束
-        NumberListenSkill++;
+        yield return new WaitForSeconds(TimeListenSkill);//技能持续时长
+        /*
+        VoiceShowIf = false;
+        FeetShowIf = false;
+        */
         AllowListenSkillIf = true;
+      
     }
 }

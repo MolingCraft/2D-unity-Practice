@@ -56,8 +56,8 @@ public class Normal : MonoBehaviour
     int dir = 1;
     void Start()
     {
-        EnemyRigid = GetComponent<Rigidbody2D>();//人物刚体
-        EnemyAnim = GetComponent<Animator>();//人物动画
+        EnemyRigid = GetComponent<Rigidbody2D>();//刚体
+        EnemyAnim = GetComponent<Animator>();//动画
         PlayerTransform = GameObject.FindGameObjectWithTag("Player").GetComponent<Transform>();
         XStartDistance = transform.position.x;
         YStartDistance = transform.position.y;
