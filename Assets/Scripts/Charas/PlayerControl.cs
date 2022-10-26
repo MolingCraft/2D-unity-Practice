@@ -6,9 +6,9 @@ using UnityEngine.UI;
 public class PlayerControl : MonoBehaviour
 {
     public Rigidbody2D PlayerRigid;
-    ////public Animator PlayerAnim;
+    //public Animator PlayerAnim;
     [Header("基础设置")]
-    //public Transform Player;
+    public Transform PlayerTransform;
     //public string PlayerName;
     public GameObject PlayerSprite;//玩家角色物体
     public float PlayerAlpha;//玩家不透明度，同时也是玩家的血量
@@ -45,8 +45,9 @@ public class PlayerControl : MonoBehaviour
     private bool VoiceShowOne;//切换音圈显示时防止命令重复运行
     public ParticleSystem VoiceSystem;//音圈的对象
     public Material VoiceMaterial;//音圈的材质
+    public ParticleSystem EnemyVoiceSystem;//音圈的对象
+    public Material EnemyVoiceMaterial;//音圈的材质
 
-    
     [Header("“视”技能参数设置")]
     //技能《视》
     public bool AllowEyeSkillIf;//是否允许使用技能
@@ -64,27 +65,31 @@ public class PlayerControl : MonoBehaviour
     public float MaxNumberListenSkill;//最大技能次数
     public float TimeListenSkill;//持续时间
 
+
+    private void Awake()
+    {
+        PlayerRigid.GetComponent<Rigidbody2D>();//人物刚体
+        //PlayerAnim.GetComponent<Animator>();//人物动画
+
+        StepSystem.GetComponent<Renderer>().material = FeetStepMaterial;
+
+        MapBlock.GetComponent<Renderer>().material.color = new Color(1.0f, 1.0f, 1.0f, 0f);
+        Enemy.GetComponent<Renderer>().material.color = new Color(1.0f, 1.0f, 1.0f, 0f);
+    }
     // Start is called before the first frame update
     void Start()
     {
-        PlayerRigid.GetComponent<Rigidbody2D>();//人物刚体
-        ////PlayerAnim.GetComponent<Animator>();//人物动画
-        ///
+        
         LastEmit = transform.position;
-        StepSystem.GetComponent<Renderer>().material = FeetStepMaterial;
-
+        
         AllowRushIf = true;
         InRushIf = false;
-        
         
         UseEyeSkillNumber = 0;
         AlphaAddSkill = 1 / MaxNumberEyeSkill;//确保在达到最大技能次数时，技能对象的alpha值达到100%
 
         UseListenSkillNumber = 0;
         
-        
-        MapBlock.GetComponent<Renderer>().material.color = new Color(1.0f, 1.0f, 1.0f, 0f);
-
     }
 
     private void Reset()
@@ -100,7 +105,6 @@ public class PlayerControl : MonoBehaviour
         //玩家不透明度改变
         PlayerSprite.GetComponent<Renderer>().material.color=new Color(1.0f, 1.0f, 1.0f, PlayerAlpha);
         //玩家alpha低于一定值时禁止冲刺
-        if (PlayerAlpha < RushMinAlpha) AllowRushIf = false;else AllowRushIf = true;
 
         Move();
 
@@ -111,30 +115,38 @@ public class PlayerControl : MonoBehaviour
         if (VoiceShowOne&&VoiceShowIf)
         {
             VoiceSystem.Play();
+            EnemyVoiceSystem.Play();
             VoiceShowOne = false;
         }
         else if (!VoiceShowOne && !VoiceShowIf)
         {
             VoiceSystem.Stop();
+            EnemyVoiceSystem.Stop();
             VoiceShowOne = true;
         }
 
+        
+    }
+    // Update is called once per frame
+    void Update()
+    {
+        
+        //当不透明度低于允许值时禁止冲刺
+        if (PlayerAlpha < RushMinAlpha) AllowRushIf = false; else AllowRushIf = true;
         //《视》技能
         if (AllowEyeSkillIf && Input.GetButtonDown("EyeSkill")) StartCoroutine(EyeSkill());
         //《听》技能
         if (AllowListenSkillIf && Input.GetButtonDown("ListenSkill")) StartCoroutine(ListenSkill());
 
     }
-    // Update is called once per frame
-    void Update()
-    {
-       
-    }
-    
+
     void Move()
     {
-        moveVer = Input.GetAxis("Vertical");
-        moveHor = Input.GetAxis("Horizontal");
+        moveVer = Input.GetAxisRaw("Vertical");
+        moveHor = Input.GetAxisRaw("Horizontal");
+        Vector2 MoveInput=(PlayerTransform.right * moveHor + PlayerTransform.up * moveVer).normalized;
+        //Input.GetAxisRaw("Vertical")会导致移动时不是平移，缺少缓动
+        //Input.GetAxis("Horizontal")会使移动时拥有缓动
         if (!Mathf.Approximately(moveHor, 0.0f) || !Mathf.Approximately(moveVer, 0.0f))//使脚印可以旋转朝向移动方向
         {
             lookDirection.Set(moveHor,moveVer);
@@ -149,23 +161,24 @@ public class PlayerControl : MonoBehaviour
         {
             InRushIf = true;
             PlayerAlpha -= RushAlphaExpend;
-            PlayerRigid.velocity = new Vector2(moveHor * PlayerRushSpeed * Time.deltaTime, moveVer * PlayerRushSpeed * Time.deltaTime);
+            
+            PlayerRigid.velocity = MoveInput * PlayerRushSpeed;
             // PlayerRushSpeed * Time.deltaTime; * Time.deltaTime;
             // 这个似乎可以防止因不同电脑的性能导致的帧数差别，从而令奔跑速度不一致的问题
+            //在vector2()末尾添加的.normalized可以防止同时按下水平和垂直方向键后的速度叠加，令方向键移动时呈现圆周形式
+
             PlayerCurrentSpeed = PlayerRushSpeed;
             ////PlayerAnim.SetBool("IsRush", true);
         }
         else
         {
             InRushIf = false;
-            PlayerRigid.velocity = new Vector2(moveHor * PlayerRunSpeed * Time.deltaTime, moveVer * PlayerRunSpeed * Time.deltaTime);
+            PlayerRigid.velocity = MoveInput * PlayerRunSpeed;
             PlayerCurrentSpeed = PlayerRunSpeed;
             ////PlayerAnim.SetBool("IsRush", false);
         }
-        //PlayerRigid.velocity=position;
-        
-        //Input.GetAxisRaw("Vertical")会导致移动时不是平移，缺少缓动
 
+        
     }
     
     void SetFeetStep()//脚步
@@ -215,10 +228,13 @@ public class PlayerControl : MonoBehaviour
     {
         UseEyeSkillNumber++;
         AllowEyeSkillIf = false;
-        
+        Normal.PlayerTrackingIf = true;
         MapBlock.GetComponent<Renderer>().material.color = new Color(1.0f, 1.0f, 1.0f, AlphaStartEyeNumber + AlphaAddSkill * UseEyeSkillNumber);
+        Enemy.GetComponent<Renderer>().material.color = new Color(1.0f, 1.0f, 1.0f, AlphaStartEyeNumber + AlphaAddSkill * UseEyeSkillNumber);
         yield return new WaitForSeconds(TimeEyeSkill);//技能持续时长
         MapBlock.GetComponent<Renderer>().material.color = new Color(1.0f, 1.0f, 1.0f, AlphaStartEyeNumber + AlphaAddSkill * (UseEyeSkillNumber-1));
+        Enemy.GetComponent<Renderer>().material.color = new Color(1.0f, 1.0f, 1.0f, AlphaStartEyeNumber + AlphaAddSkill * (UseEyeSkillNumber - 1));
+        Normal.PlayerTrackingIf = false;
         AllowEyeSkillIf = true;
     }
     
@@ -230,12 +246,8 @@ public class PlayerControl : MonoBehaviour
 
         VoiceShowIf = !VoiceShowIf;
         FeetShowIf = !FeetShowIf;
-
+        Normal.EnemyFeetShowIf = !Normal.EnemyFeetShowIf;
         yield return new WaitForSeconds(TimeListenSkill);//技能持续时长
-        /*
-        VoiceShowIf = false;
-        FeetShowIf = false;
-        */
         AllowListenSkillIf = true;
       
     }

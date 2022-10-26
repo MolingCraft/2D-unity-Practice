@@ -13,7 +13,7 @@ public class Normal : MonoBehaviour
     public float EnemySpeed;//怪物移动速度
 
     [Header("追踪设置")]
-    public bool PlayerTrackingIf;//是否追踪玩家
+    public static bool PlayerTrackingIf;//是否追踪玩家
     public float Radius;//追踪半径
     public float interval;//怪物追踪时与玩家的间距
     
@@ -28,23 +28,10 @@ public class Normal : MonoBehaviour
     public bool RandomWanderingIf;//是否随机游荡
     public float XRandomNumber;
     public float YRandomNumber;
-    [Header("游荡类型设置")]
-    /*
-    public bool RandomWander;//完全随机
-    [Header("目标终点坐标（x，y）")]
-    public bool Line;//以直线游荡
-    [Header("圆心坐标（x，y），半径R")]
-    public bool Round;//圆形
-    [Header("首参数1横0竖，横长W，纵长H")]
-    public bool Rectangle;//长方形
-    [Header("游荡参数，坐标请分开填入")]
-    public float Number1;
-    public float Number2;
-    public float Number3;
-    public float Number4;
-    */
+   
     [Header("脚印设置")]
-    public bool FeetShowIf;//是否显示脚印
+
+    public static bool EnemyFeetShowIf;//是否显示脚印
     public ParticleSystem stepSystem;
     public Material footStepMaterial;
     Vector3 lastEmit;
@@ -61,7 +48,8 @@ public class Normal : MonoBehaviour
         PlayerTransform = GameObject.FindGameObjectWithTag("Player").GetComponent<Transform>();
         XStartDistance = transform.position.x;
         YStartDistance = transform.position.y;
-
+        EnemyFeetShowIf = false;
+        PlayerTrackingIf = false;
         //AlphaEnemy = 0;
         //transform.GetComponent<Renderer>().material.color = new Color(1.0f, 1.0f, 1.0f, AlphaEnemy);
 
@@ -83,7 +71,7 @@ public class Normal : MonoBehaviour
             lookDirection.Set(XRotateDistance, YRotateDistance);
             lookDirection.Normalize();
         }
-        if (FeetShowIf)SetFeetStep();
+        if (EnemyFeetShowIf) SetFeetStep();
     }
     // Update is called once per frame
     void Update()
