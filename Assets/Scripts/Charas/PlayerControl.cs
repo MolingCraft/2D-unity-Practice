@@ -34,7 +34,8 @@ public class PlayerControl : MonoBehaviour
     public float delta = 1;
     public float gap = 0.5f;
     public float systemYOffset = -0.225f;
-    Vector2 lookDirection = new Vector2(1, 0);
+    public static Vector2 lookDirection = new Vector2(1, 0);
+   
     int dir = 1;
     [Header("技能生效对象")]
     public GameObject MapBlock;//地图
@@ -80,7 +81,7 @@ public class PlayerControl : MonoBehaviour
     void Start()
     {
         
-        LastEmit = transform.position;
+        LastEmit = PlayerTransform.position;
         
         AllowRushIf = true;
         InRushIf = false;
@@ -112,6 +113,7 @@ public class PlayerControl : MonoBehaviour
         if ((PlayerAlpha<AlphaMaxNumber)&&!Input.GetKey(KeyCode.LeftShift)) PlayerAlpha += AlphaRecoverNumber;
         //脚步显示
         if (FeetShowIf)SetFeetStep();
+
         if (VoiceShowOne&&VoiceShowIf)
         {
             VoiceSystem.Play();
@@ -130,7 +132,7 @@ public class PlayerControl : MonoBehaviour
     // Update is called once per frame
     void Update()
     {
-        
+
         //当不透明度低于允许值时禁止冲刺
         if (PlayerAlpha < RushMinAlpha) AllowRushIf = false; else AllowRushIf = true;
         //《视》技能
@@ -149,8 +151,9 @@ public class PlayerControl : MonoBehaviour
         //Input.GetAxis("Horizontal")会使移动时拥有缓动
         if (!Mathf.Approximately(moveHor, 0.0f) || !Mathf.Approximately(moveVer, 0.0f))//使脚印可以旋转朝向移动方向
         {
-            lookDirection.Set(moveHor,moveVer);
-            lookDirection.Normalize();
+            lookDirection = MoveInput;
+           /* lookDirection.Set(moveHor, moveVer);
+            lookDirection.Normalize();*/
         }
         ////PlayerAnim.SetFloat("Look X", lookDirection.x);
         ////PlayerAnim.SetFloat("Look Y", lookDirection.y);
@@ -181,24 +184,29 @@ public class PlayerControl : MonoBehaviour
         
     }
     
+  
     void SetFeetStep()//脚步
     {
-        if (Vector2.Distance(LastEmit, transform.position) > delta)
+        if (Vector2.Distance(LastEmit,transform.position) > delta)
         {
             Gizmos.color = Color.green;
-            var pos = transform.position + new Vector3(lookDirection.y * gap * dir, -lookDirection.x * gap * dir, -5) + new Vector3(0, systemYOffset, 0);
+            
+            var pos =transform.position + new Vector3(lookDirection.y * gap * dir, -lookDirection.x * gap * dir, 0) + new Vector3(0, systemYOffset, 0);
             //利用两向量垂直公式：x1x2+y1y2=0，将lookDirection转90度。
             dir *= -1;
             ParticleSystem.EmitParams ep = new ParticleSystem.EmitParams();
             ep.position = pos;
+            
             if (lookDirection.x > 0)
             {
                 ep.rotation = Vector2.Angle(new Vector2(0, 1), lookDirection);
+                
             }
             else if (lookDirection.x <= 0)
             {
                 ep.rotation = -Vector2.Angle(new Vector2(0, 1), lookDirection);
             }
+            
             StepSystem.Emit(ep, 1);
             LastEmit = transform.position;
            

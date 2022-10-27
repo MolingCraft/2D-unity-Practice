@@ -31,6 +31,7 @@ public class RotatingCamera : MonoBehaviour
         float LookRotate=Input.GetAxis("LookRotate");
         if (Input.GetButtonDown("LookRotate") && !isRotating)
         {
+           
             StartCoroutine(RotateAround(LookRotate * 45, RotateTime));
         }
     }

@@ -37,7 +37,7 @@ public class Normal : MonoBehaviour
     Vector3 lastEmit;
     public float delta = 1;
     public float gap = 0.5f;
-    public float systemYOffset = -0.225f;
+    public float systemYOffset = 0;
     Vector2 lookDirection = new Vector2(1, 0);
 
     int dir = 1;
@@ -114,7 +114,7 @@ public class Normal : MonoBehaviour
         if (Vector2.Distance(lastEmit, transform.position) > delta)
         {
             Gizmos.color = Color.green;
-            var pos = transform.position + new Vector3(lookDirection.y * gap * dir, -lookDirection.x * gap * dir, -5) + new Vector3(0, systemYOffset, 0);
+            var pos = transform.position + new Vector3(lookDirection.y * gap * dir, -lookDirection.x * gap * dir, 0) + new Vector3(0, systemYOffset, 0);
             //利用两向量垂直公式：x1x2+y1y2=0，将lookDirection转90度。
             dir *= -1;
             ParticleSystem.EmitParams ep = new ParticleSystem.EmitParams();
